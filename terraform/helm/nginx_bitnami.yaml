@@ -2,10 +2,6 @@ replicaCount: 2
 fullnameOverride: demo-app
 podAntiAffinityPreset: soft
 resourcesPreset: "small"
-# image:
-#   registry: docker.io
-#   repository: bitnami/nginx
-#   tag: 1.23.0-debian-11-r0
 autoscaling:
   enabled: true
   minReplicas: 2
@@ -25,3 +21,43 @@ service:
   annotations:
     service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
     service.beta.kubernetes.io/aws-load-balancer-type: nlb
+
+extraDeploy:
+  - apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: gha-deployer
+      namespace: nginx
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: Role
+    metadata:
+      name: gha-deployer-role
+      namespace: nginx
+    rules:
+      - apiGroups: ["apps"]
+        resources: ["deployments", "replicasets"]
+        verbs: ["get", "list", "watch", "patch", "update"]
+      - apiGroups: [""]
+        resources: ["pods"]
+        verbs: ["get", "list", "watch"]
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      name: gha-deployer-binding
+      namespace: nginx
+    subjects:
+      - kind: ServiceAccount
+        name: gha-deployer
+        namespace: nginx
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: Role
+      name: gha-deployer-role
+  - apiVersion: v1
+    kind: Secret
+    metadata:
+      name: gha-deployer-token
+      namespace: nginx
+      annotations:
+        kubernetes.io/service-account.name: gha-deployer
+    type: kubernetes.io/service-account-token
