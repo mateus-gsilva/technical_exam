@@ -1,0 +1,27 @@
+replicaCount: 2
+fullnameOverride: demo-app
+podAntiAffinityPreset: soft
+resourcesPreset: "small"
+# image:
+#   registry: docker.io
+#   repository: bitnami/nginx
+#   tag: 1.23.0-debian-11-r0
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPU: 80
+  targetMemory: 80
+pdb:
+  create: true
+  minAvailable: 1
+tolerations:
+  - key: "node-role"
+    operator: "Equal"
+    value: "system"
+    effect: "PreferNoSchedule"
+service:
+  type: LoadBalancer
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
