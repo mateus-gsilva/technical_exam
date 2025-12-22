@@ -24,6 +24,7 @@ jobs:
           context: ./terraform
           file: ./terraform/Dockerfile
           push: false
+          load: true
           tags: local/pp-nginx:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
