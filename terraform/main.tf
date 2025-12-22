@@ -55,9 +55,7 @@ resource "helm_release" "demo_app" {
   chart      = "nginx"
   namespace  = "nginx"
   version    = "22.3.3"
-
   create_namespace = true
   values           = [file("${path.module}/helm/nginx_bitnami.yaml")]
-
   depends_on = [module.eks]
 }
