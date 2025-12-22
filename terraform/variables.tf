@@ -102,3 +102,28 @@ variable "eks_kubernetes_version" {
   description = "Kubernetes `<major>.<minor>` version to use for the EKS cluster (i.e.: `1.33`)"
   type        = string
 }
+
+variable "demo_app" {
+  description = "Helm release configuration for the demo NGINX app"
+  type = object({
+    name             = string
+    repository       = string
+    chart            = string
+    version          = string
+    namespace        = string
+    create_namespace = bool
+    values_file      = string
+  })
+}
+
+
+variable "kube_prometheus_stack" {
+  description = "kube-prometheus-stack Helm settings used by eks-blueprints-addons"
+  type = object({
+    name          = string
+    chart_version = string
+    repository    = string
+    namespace     = string
+    values_file   = string
+  })
+}

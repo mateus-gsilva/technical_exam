@@ -41,21 +41,23 @@ module "eks-blueprints-addons" {
   oidc_provider_arn            = module.eks.oidc_provider_arn
   enable_kube_prometheus_stack = var.enable_kube_prometheus_stack
   kube_prometheus_stack = {
-    name          = "kube-prometheus-stack"
-    chart_version = "51.2.0"
-    repository    = "https://prometheus-community.github.io/helm-charts"
-    namespace     = "kube-prometheus-stack"
-    values        = [file("${path.module}/helm/kube-prometheus-stack.yaml")]
+    name          = var.kube_prometheus_stack.name
+    chart_version = var.kube_prometheus_stack.chart_version
+    repository    = var.kube_prometheus_stack.repository
+    namespace     = var.kube_prometheus_stack.namespace
+    values        = [file("${path.module}/${var.kube_prometheus_stack.values_file}")]
   }
 }
 
 resource "helm_release" "demo_app" {
-  name       = "nginx"
-  repository = "oci://registry-1.docker.io/bitnamicharts"
-  chart      = "nginx"
-  namespace  = "nginx"
-  version    = "22.3.3"
-  create_namespace = true
-  values           = [file("${path.module}/helm/nginx_bitnami.yaml")]
+  name             = var.demo_app.name
+  repository       = var.demo_app.repository
+  chart            = var.demo_app.chart
+  namespace        = var.demo_app.namespace
+  version          = var.demo_app.version
+  create_namespace = var.demo_app.create_namespace
+
+  values = [file("${path.module}/${var.demo_app.values_file}")]
+
   depends_on = [module.eks]
 }
