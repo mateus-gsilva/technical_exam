@@ -102,3 +102,28 @@ jobs:
           kubectl -n nginx rollout status deployment/demo-app --timeout=5m
         env:
           IMAGE: ${{ needs.build.outputs.image }}
+
+      - name: Show demo app URL
+        run: |
+          hostname=$(kubectl -n nginx get svc demo-app -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
+          ip=$(kubectl -n nginx get svc demo-app -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)
+
+          addr="$hostname"
+          if [ -z "$addr" ]; then addr="$ip"; fi
+
+          if [ -n "$addr" ]; then
+            url="http://$addr"
+            echo "Demo app URL: $url"
+            {
+              echo "## Demo app"
+              echo
+              echo "- URL: $url"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "LoadBalancer address not available yet. Re-run or wait a bit."
+            {
+              echo "## Demo app"
+              echo
+              echo "- URL: (pending LoadBalancer provisioning)"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
