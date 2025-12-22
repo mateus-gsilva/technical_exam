@@ -1,3 +1,7 @@
+#######################################################
+# Demo app (LoadBalancer URL)
+#######################################################
+
 data "kubernetes_service_v1" "demo_app" {
   metadata {
     name      = "demo-app"
@@ -18,10 +22,18 @@ output "demo_app_service_url" {
   value       = local.demo_app_address != "" ? "http://${local.demo_app_address}" : ""
 }
 
+#######################################################
+# Convenience
+#######################################################
+
 output "kubectl_context_command" {
   description = "Command to update local kubeconfig context for this EKS cluster"
-  value       = "aws eks update-kubeconfig --name ${var.eks_name}"
+  value       = "aws eks update-kubeconfig --region ${var.aws_region} --name ${var.eks_name}"
 }
+
+#######################################################
+# EKS
+#######################################################
 
 output "eks_cluster_arn" {
   description = "The Amazon Resource Name (ARN) of the cluster"
@@ -42,6 +54,11 @@ output "eks_eks_managed_node_groups" {
   description = "Map of attribute maps for all EKS managed node groups created"
   value       = module.eks.eks_managed_node_groups
 }
+
+#######################################################
+# VPC
+#######################################################
+
 output "vpc_azs" {
   description = "A list of availability zones specified as argument to this module"
   value       = module.vpc.azs

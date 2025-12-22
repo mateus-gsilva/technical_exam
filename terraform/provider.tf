@@ -1,3 +1,7 @@
+#######################################################
+# Terraform / Providers
+#######################################################
+
 terraform {
   required_providers {
     aws = {
@@ -8,7 +12,12 @@ terraform {
 }
 
 provider "aws" {
+  region = var.aws_region
 }
+
+#######################################################
+# EKS auth (used by kubernetes/helm providers)
+#######################################################
 
 data "aws_eks_cluster" "this" {
   name       = module.eks.cluster_name
@@ -19,6 +28,10 @@ data "aws_eks_cluster_auth" "this" {
   name       = module.eks.cluster_name
   depends_on = [module.eks]
 }
+
+#######################################################
+# Kubernetes / Helm
+#######################################################
 
 provider "kubernetes" {
   host                   = data.aws_eks_cluster.this.endpoint

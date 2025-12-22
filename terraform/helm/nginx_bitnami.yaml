@@ -21,7 +21,6 @@ service:
   annotations:
     service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
     service.beta.kubernetes.io/aws-load-balancer-type: nlb
-
 extraDeploy:
   - apiVersion: v1
     kind: ServiceAccount
