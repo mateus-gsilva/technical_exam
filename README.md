@@ -110,6 +110,8 @@ O job `deploy` roda em `push` na `main` e executa:
 - `kubectl set image deployment/demo-app ...`
 - `kubectl rollout status ...`
 
+Ao final do deploy, a pipeline também consulta o Service `demo-app` e escreve no **Job Summary** do GitHub Actions a URL do LoadBalancer (quando já disponível).
+
 Ele autentica no cluster usando token de ServiceAccount (via secrets do GitHub).
 
 ## Configurar acesso do GitHub ao cluster
