@@ -15,10 +15,13 @@ on:
 permissions:
   contents: read
   packages: write
+  id-token: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,6 +32,11 @@ jobs:
       - name: Set image name
         run: |
           echo "IMAGE_NAME=$(echo ghcr.io/${GITHUB_REPOSITORY} | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
+      - name: Compute image tag
+        id: meta
+        run: |
+          echo "image=${IMAGE_NAME}:${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
         if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.push) }}
@@ -50,3 +58,47 @@ jobs:
             ${{ env.IMAGE_NAME }}:${{ github.run_number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to EKS
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    steps:
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Write kubeconfig (ServiceAccount token)
+        run: |
+          mkdir -p "$HOME/.kube"
+          cat > "$HOME/.kube/config" <<'EOF'
+          apiVersion: v1
+          kind: Config
+          clusters:
+          - name: eks
+            cluster:
+              server: ${K8S_SERVER}
+              certificate-authority-data: ${K8S_CA}
+          users:
+          - name: gha
+            user:
+              token: ${K8S_TOKEN}
+          contexts:
+          - name: gha
+            context:
+              cluster: eks
+              user: gha
+              namespace: nginx
+          current-context: gha
+          EOF
+        env:
+          K8S_SERVER: ${{ secrets.K8S_SERVER }}
+          K8S_CA: ${{ secrets.K8S_CA }}
+          K8S_TOKEN: ${{ secrets.K8S_TOKEN }}
+
+      - name: Deploy image
+        run: |
+          kubectl -n nginx set image deployment/demo-app "*=${IMAGE}" --record
+          kubectl -n nginx rollout status deployment/demo-app --timeout=5m
+        env:
+          IMAGE: ${{ needs.build.outputs.image }}

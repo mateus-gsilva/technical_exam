@@ -34,6 +34,7 @@ module "eks" {
 module "eks-blueprints-addons" {
   source                       = "aws-ia/eks-blueprints-addons/aws"
   version                      = "1.23.0"
+  depends_on                   = [module.eks]
   cluster_name                 = module.eks.cluster_name
   cluster_endpoint             = module.eks.cluster_endpoint
   cluster_version              = module.eks.cluster_version
@@ -44,7 +45,7 @@ module "eks-blueprints-addons" {
     chart_version = "51.2.0"
     repository    = "https://prometheus-community.github.io/helm-charts"
     namespace     = "kube-prometheus-stack"
-    values = [file("${path.module}/helm/kube-prometheus-stack.yaml")]
+    values        = [file("${path.module}/helm/kube-prometheus-stack.yaml")]
   }
 }
 
@@ -57,4 +58,6 @@ resource "helm_release" "demo_app" {
 
   create_namespace = true
   values           = [file("${path.module}/helm/nginx_bitnami.yaml")]
+
+  depends_on = [module.eks]
 }
