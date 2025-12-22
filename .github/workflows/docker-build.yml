@@ -71,7 +71,7 @@ jobs:
       - name: Write kubeconfig (ServiceAccount token)
         run: |
           mkdir -p "$HOME/.kube"
-          cat > "$HOME/.kube/config" <<'EOF'
+          cat > "$HOME/.kube/config" <<EOF
           apiVersion: v1
           kind: Config
           clusters:
@@ -98,7 +98,7 @@ jobs:
 
       - name: Deploy image
         run: |
-          kubectl -n nginx set image deployment/demo-app "*=${IMAGE}" --record
+          kubectl -n nginx set image deployment/demo-app "*=${IMAGE}"
           kubectl -n nginx rollout status deployment/demo-app --timeout=5m
         env:
           IMAGE: ${{ needs.build.outputs.image }}
