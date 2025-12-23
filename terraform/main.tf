@@ -44,9 +44,8 @@ module "eks" {
 #######################################################
 
 module "eks-blueprints-addons" {
-  source  = "aws-ia/eks-blueprints-addons/aws"
-  version = "1.23.0"
-
+  source                       = "aws-ia/eks-blueprints-addons/aws"
+  version                      = "1.23.0"
   depends_on                   = [module.eks]
   cluster_name                 = module.eks.cluster_name
   cluster_endpoint             = module.eks.cluster_endpoint
@@ -68,11 +67,12 @@ module "eks-blueprints-addons" {
 
 resource "helm_release" "demo_app" {
   name             = var.demo_app.name
+  depends_on       = [module.eks]
   repository       = var.demo_app.repository
   chart            = var.demo_app.chart
   version          = var.demo_app.version
   namespace        = var.demo_app.namespace
   create_namespace = var.demo_app.create_namespace
   values           = [file("${path.module}/${var.demo_app.values_file}")]
-  depends_on       = [module.eks]
+
 }
