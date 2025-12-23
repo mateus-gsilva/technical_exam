@@ -1,32 +1,36 @@
 # technical_exam
 
-Este repositório contém:
-- Infraestrutura (VPC + EKS + addons) via Terraform
-- Um app NGINX simples (Hello World) empacotado em imagem Docker
-- Pipeline no GitHub Actions para build/push no GHCR e deploy no EKS via `kubectl set image`
+This project was created as part of a technical interview.
 
-## Escopo atendido
-- Criar um Cluster EKS com Observabilidade (Prometheus e Grafana) via Terraform
-- Criar uma aplicação simples (Hello World) para demonstrar a observabilidade
-- Disponibilizar a aplicação externamente
-- Publicar no GitHub
-- Criar um CI/CD (opcional) para build/push e deploy
+Before running Terraform, adjust `terraform/terraform.tfvars` to your needs (e.g., `aws_region`, VPC CIDR/subnets, EKS endpoint access, and node group sizing).
 
-## Estrutura
-- `terraform/`: VPC + EKS + Helm releases (kube-prometheus-stack e nginx)
-- `terraform/helm/`: values dos charts (`nginx_bitnami.yaml`, `kube-prometheus-stack.yaml`)
-- `app/`: `Dockerfile`, `.dockerignore` e `index.html`
+This repository contains:
+- Infrastructure (VPC + EKS + add-ons) provisioned with Terraform
+- A simple NGINX demo app (Hello World) packaged as a Docker image
+- A GitHub Actions pipeline to build/push to GHCR and deploy to EKS via `kubectl set image`
+
+## Scope covered
+- Create an EKS cluster with Observability (Prometheus and Grafana) using Terraform
+- Create a simple application (Hello World) to demonstrate observability
+- Expose the application externally
+- Publish the project on GitHub
+- Create an optional CI/CD pipeline for build/push and deploy
+
+## Structure
+- `terraform/`: VPC + EKS + Helm releases (kube-prometheus-stack and nginx)
+- `terraform/helm/`: chart values (`nginx_bitnami.yaml`, `kube-prometheus-stack.yaml`)
+- `app/`: `Dockerfile`, `.dockerignore`, and `index.html`
 - `.github/workflows/docker-build.yml`: build/push + deploy
 
-## Pré-requisitos
-- AWS CLI configurado localmente (para aplicar Terraform): `aws configure`
-- Terraform instalado
-- `kubectl` instalado
-- Acesso/credenciais AWS com permissão para criar VPC/EKS/EC2/IAM/ELB
+## Prerequisites
+- AWS CLI configured locally (to run Terraform): `aws configure`
+- Terraform installed
+- `kubectl` installed
+- AWS credentials with permission to create VPC/EKS/EC2/IAM/ELB resources
 
-## Provisionar (Terraform)
+## Provision (Terraform)
 
-Dentro de `terraform/`:
+From `terraform/`:
 
 ```bash
 cd terraform
@@ -34,94 +38,94 @@ terraform init
 terraform apply
 ```
 
-Outputs úteis (após o apply):
+Useful outputs (after apply):
 
 ```bash
 terraform output kubectl_context_command
 terraform output demo_app_service_url
 ```
 
-> Para testes, o endereço do LoadBalancer do NGINX (DNS/IP) aparece no output `demo_app_service_url`.
+> For testing, the NGINX LoadBalancer address (DNS/IP) appears in the `demo_app_service_url` output.
 
-## O que o Terraform cria (explicação)
+## What Terraform creates (overview)
 
 ### VPC
-Definida em `terraform/main.tf` via `terraform-aws-modules/vpc/aws`.
+Defined in `terraform/main.tf` using `terraform-aws-modules/vpc/aws`.
 
-Componentes principais provisionados:
-- VPC com CIDR definido em `terraform/terraform.tfvars`
-- Subnets públicas e privadas (multi-AZ)
-- Internet Gateway (para saída/entrada via subnets públicas)
-- NAT Gateway (para permitir saída à internet a partir das subnets privadas)
-- Route tables e associações
-- Database subnets/subnet group (habilitado no módulo, útil para extensões futuras)
+Main provisioned components:
+- VPC with CIDR defined in `terraform/terraform.tfvars`
+- Public and private subnets (multi-AZ)
+- Internet Gateway (ingress/egress through public subnets)
+- NAT Gateway (egress to the internet from private subnets)
+- Route tables and associations
+- Database subnets/subnet group (enabled in the module; useful for future extensions)
 
-Motivação:
-- Os nodes do EKS ficam em subnets privadas; o NLB (Service tipo LoadBalancer) usa subnets públicas para exposição externa.
+Rationale:
+- EKS nodes run in private subnets; the NLB (Service type LoadBalancer) uses public subnets for external exposure.
 
 ### EKS
-Definido em `terraform/main.tf` via `terraform-aws-modules/eks/aws`.
+Defined in `terraform/main.tf` using `terraform-aws-modules/eks/aws`.
 
-O que é criado/configurado:
-- Cluster EKS com versão Kubernetes configurável
-- Endpoint público/privado conforme variáveis (para este teste o endpoint pode estar público; ver “Notas de segurança”)
-- Managed Node Group (definido em `terraform/terraform.tfvars`)
-- Addons EKS essenciais (ex.: `vpc-cni`, `coredns`, `kube-proxy`, `metrics-server`) configurados via `eks_addons`
-- Regras de acesso ao cluster via `access_entries` (EKS Access Entries)
+What is created/configured:
+- EKS cluster with configurable Kubernetes version
+- Public/private endpoint access driven by variables (for this test the endpoint may be public; see “Security notes”)
+- Managed Node Group (defined in `terraform/terraform.tfvars`)
+- Essential EKS add-ons (e.g., `vpc-cni`, `coredns`, `kube-proxy`, `metrics-server`) configured via `eks_addons`
+- Cluster access rules via `access_entries` (EKS Access Entries)
 
-### Observabilidade (Prometheus + Grafana)
-Implementada pelo módulo `aws-ia/eks-blueprints-addons/aws` em `terraform/main.tf`.
+### Observability (Prometheus + Grafana)
+Implemented using `aws-ia/eks-blueprints-addons/aws` in `terraform/main.tf`.
 
-Este módulo instala o chart `kube-prometheus-stack` (Prometheus Operator), que inclui:
+This module installs the `kube-prometheus-stack` chart (Prometheus Operator), which includes:
 - Prometheus
 - Grafana
-- Exporters e componentes do stack
+- Exporters and other stack components
 
-Configuração do chart:
-- Values em `terraform/helm/kube-prometheus-stack.yaml` (ex.: neste projeto `alertmanager.enabled: false`)
+Chart configuration:
+- Values in `terraform/helm/kube-prometheus-stack.yaml` (e.g., in this project: `alertmanager.enabled: false`)
 
-### Aplicação demo (NGINX via Helm)
-Definida em `terraform/main.tf` como `helm_release.demo_app` usando o chart Bitnami `nginx`.
+### Demo app (NGINX via Helm)
+Defined in `terraform/main.tf` as `helm_release.demo_app` using the Bitnami `nginx` chart.
 
-O que este release entrega:
-- Deployment/Service do NGINX no namespace `nginx`
-- Service do tipo `LoadBalancer` (configurado em `terraform/helm/nginx_bitnami.yaml`), criando um NLB na AWS
-- O endereço externo é exposto em `terraform/output demo_app_service_url`
+What this release provides:
+- NGINX Deployment/Service in the `nginx` namespace
+- A `LoadBalancer` Service (configured in `terraform/helm/nginx_bitnami.yaml`) which creates an AWS NLB
+- The external address is exposed via `terraform output demo_app_service_url`
 
-Relação com a pipeline:
-- Idealmente, este tipo de atualização de imagem seria feito via **GitOps** (ex.: Argo CD/Flux) atualizando declarativos no repositório.
-- Por simplicidade (e para manter o CI/CD opcional e curto), esta implementação usa `kubectl set image` no Deployment `demo-app`.
-- Ou seja: o Helm cria o “esqueleto” (Deployment/Service/LB) e o CI/CD atualiza a imagem usada pelo Deployment.
+Relation to the pipeline:
+- Ideally, this kind of image update would be handled via **GitOps** (e.g., Argo CD/Flux) by updating declarative manifests in the repo.
+- For simplicity (and to keep CI/CD optional and short), this implementation uses `kubectl set image` on the `demo-app` Deployment.
+- In other words: Helm creates the “skeleton” (Deployment/Service/LB) and CI/CD updates the image used by the Deployment.
 
 ## Pipeline (build/push + deploy)
 
-O workflow está em `.github/workflows/docker-build.yml`.
+The workflow lives in `.github/workflows/docker-build.yml`.
 
-### Build + Push para GHCR
-- Em `push` na branch `main`, a pipeline:
-  - builda a imagem em `app/`
-  - faz push para `ghcr.io/<owner>/<repo>`
-  - tags publicadas:
+### Build + Push to GHCR
+- On `push` to the `main` branch, the pipeline:
+  - builds the image from `app/`
+  - pushes to `ghcr.io/<owner>/<repo>`
+  - publishes tags:
     - `:<sha>`
-    - `:<run_number>` (sequencial por execução do workflow)
+    - `:<run_number>` (sequential per workflow run)
 
-### Deploy para o EKS
-O job `deploy` roda em `push` na `main` e executa:
+### Deploy to EKS
+The `deploy` job runs on `push` to `main` and executes:
 - `kubectl set image deployment/demo-app ...`
 - `kubectl rollout status ...`
 
-Ao final do deploy, a pipeline também consulta o Service `demo-app` e escreve no **Job Summary** do GitHub Actions a URL do LoadBalancer (quando já disponível).
+At the end of the deploy, the pipeline also queries the `demo-app` Service and writes the LoadBalancer URL to the GitHub Actions **Job Summary** (when available).
 
-Ele autentica no cluster usando token de ServiceAccount (via secrets do GitHub).
+It authenticates to the cluster using a ServiceAccount token (via GitHub Secrets).
 
-## Configurar acesso do GitHub ao cluster
+## Configure GitHub access to the cluster
 
-O deploy usa 3 GitHub Secrets:
-- `K8S_SERVER`: endpoint do Kubernetes API
+The deploy uses 3 GitHub Secrets:
+- `K8S_SERVER`: Kubernetes API endpoint
 - `K8S_CA`: `certificate-authority-data` (base64)
-- `K8S_TOKEN`: token do ServiceAccount com RBAC mínimo
+- `K8S_TOKEN`: ServiceAccount token with minimal RBAC
 
-### Comandos para coletar os valores
+### Commands to collect the values
 
 **K8S_SERVER**
 ```bash
@@ -138,31 +142,31 @@ kubectl config view --raw --minify -o jsonpath='{.clusters[0].cluster.certificat
 kubectl -n nginx get secret gha-deployer-token -o jsonpath='{.data.token}' | base64 -d; echo
 ```
 
-> Observação: o ServiceAccount + RBAC + Secret do token podem estar provisionados via Helm `extraDeploy` no values do nginx.
+> Note: the ServiceAccount + RBAC + token Secret can be provisioned via Helm `extraDeploy` in the nginx values.
 
-## Notas de segurança
+## Security notes
 
-### Endpoint público do cluster (somente para teste)
-Para facilitar os critérios de teste/demonstração com **GitHub-hosted runners** (que executam fora da sua VPC e com IPs que mudam), este projeto pode estar com:
-- endpoint público do EKS habilitado
-- `eks_endpoint_public_access_cidrs = ["0.0.0.0/0"]` (sem restrição por CIDR)
+### Public cluster endpoint (test-only)
+To make testing/demos easier with **GitHub-hosted runners** (which run outside your VPC and have changing IPs), this project may be configured with:
+- EKS public endpoint enabled
+- `eks_endpoint_public_access_cidrs = ["0.0.0.0/0"]` (no CIDR restriction)
 
-Isso **não deve ser replicado em produção**.
+This **must not be replicated in production**.
 
-Alternativas melhores (produção):
-- **Self-hosted runner** dentro da VPC (ou com egress IP fixo) + restringir o CIDR do endpoint público para um `/32`, ou até **desabilitar endpoint público**.
-- **Endpoint privado do EKS** + conectividade privada (VPN/Direct Connect) para rodar o CI/CD dentro da rede.
-- Rodar o CI/CD **internamente** (por exemplo, **GitLab self-managed** dentro da VPC com runners internos), evitando depender da rede do GitHub-hosted runner.
-- Evitar token estático de ServiceAccount: preferir **AWS OIDC + IAM (IRSA/Access Entries)** e gerar token via `aws eks get-token` quando possível.
+Better alternatives (production):
+- **Self-hosted runner** inside the VPC (or with a fixed egress IP) + restrict the public endpoint CIDR to a `/32`, or even **disable the public endpoint**.
+- **Private EKS endpoint** + private connectivity (VPN/Direct Connect) and run CI/CD inside the network.
+- Run CI/CD **internally** (e.g., **self-managed GitLab** inside the VPC with internal runners), avoiding reliance on GitHub-hosted runner networking.
+- Avoid static ServiceAccount tokens: prefer **AWS OIDC + IAM (IRSA/Access Entries)** and generate tokens via `aws eks get-token` when possible.
 
-> Importante: se um token de ServiceAccount vazar, considere fazer rotação (recriar o Secret/token) imediatamente.
+> Important: if a ServiceAccount token leaks, rotate it immediately (recreate the Secret/token).
 
-### Registry público (somente para teste)
-Para simplificar o pull da imagem pelos nodes do cluster (sem precisar configurar `imagePullSecret`), o package no **GHCR** pode estar **público**.
+### Public registry (test-only)
+To simplify pulling images from cluster nodes (without configuring `imagePullSecret`), the **GHCR** package may be **public**.
 
-Isso **não deve ser replicado em produção**.
+This **must not be replicated in production**.
 
-Alternativas melhores (produção):
-- Manter o GHCR **privado** e configurar `imagePullSecret` no namespace/Deployment (ou via Helm values).
-- Usar **Amazon ECR** e permitir pull via **IAM do node group** (ou IRSA em casos específicos), evitando segredos estáticos no cluster.
-- Usar External Secrets/Secrets Manager para gerenciar credenciais de registry de forma centralizada.
+Better alternatives (production):
+- Keep GHCR **private** and configure `imagePullSecret` in the namespace/Deployment (or via Helm values).
+- Use **Amazon ECR** and allow pulling via the **node group IAM role** (or IRSA in specific cases), avoiding static secrets in the cluster.
+- Use External Secrets/Secrets Manager to centrally manage registry credentials.
